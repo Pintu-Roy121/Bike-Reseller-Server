@@ -10,6 +10,11 @@ const app = express()
 app.use(cors());
 app.use(express());
 
+
+
+
+
+// basic setup.....................
 app.get('/', async (req, res) => {
     res.send('Bike Server is running');
 })
