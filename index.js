@@ -23,7 +23,8 @@ async function run() {
     try {
         const categoriesCollections = client.db('BikeReseller').collection('categories');
         const productsCollections = client.db('BikeReseller').collection('products');
-        const usersCollection = client.db('BikeReseller').collection('users')
+        const usersCollection = client.db('BikeReseller').collection('users');
+        const bookingCollection = client.db('BikeReseller').collection('bookings');
 
         // Get all bike breand category.............................
         app.get('/categories', async (req, res) => {
@@ -40,6 +41,9 @@ async function run() {
         //     res.send(result)
         // })
 
+
+
+        // get specicfic category products..........................
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { category_id: id }
@@ -61,6 +65,41 @@ async function run() {
             console.log(user);
             const result = await usersCollection.insertOne(user);
             res.send(result)
+        })
+        // get all sellers.........................................
+        app.get('/users/sellers', async (req, res) => {
+            const query = { role: 'seller' }
+            const sellers = await usersCollection.find(query).toArray()
+            res.send(sellers)
+        })
+        // get all buyers.........................................
+        app.get('/users/buyers', async (req, res) => {
+            const query = { role: 'buyer' }
+            const buyers = await usersCollection.find(query).toArray()
+            res.send(buyers)
+        })
+
+        // get user from db........................................
+        app.get('/users/buyer/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send(user)
+        })
+
+        // save Booking to the db.......................................
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body;
+            const result = await bookingCollection.insertOne(booking);
+            res.send(result)
+        })
+
+        // get all bookings of user.....................
+        app.get('/bookings/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const bookings = await bookingCollection.find(query).toArray()
+            res.send(bookings)
         })
 
     }
