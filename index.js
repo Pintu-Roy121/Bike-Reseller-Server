@@ -9,7 +9,7 @@ const app = express()
 
 // middleware.......................
 app.use(cors());
-app.use(express());
+app.use(express.json());
 
 
 // Database connection........................
@@ -22,7 +22,8 @@ async function run() {
 
     try {
         const categoriesCollections = client.db('BikeReseller').collection('categories');
-        const productsCollections = client.db('BikeReseller').collection('products')
+        const productsCollections = client.db('BikeReseller').collection('products');
+        const usersCollection = client.db('BikeReseller').collection('users')
 
         // Get all bike breand category.............................
         app.get('/categories', async (req, res) => {
@@ -54,6 +55,13 @@ async function run() {
             res.send(product)
         })
 
+        // save user to database.......................
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            console.log(user);
+            const result = await usersCollection.insertOne(user);
+            res.send(result)
+        })
 
     }
     finally {
