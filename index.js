@@ -33,17 +33,25 @@ async function run() {
 
         // get category products.................................
 
-        app.get('/products', async (req, res) => {
-            const query = {}
-            const result = await productsCollections.find(query).toArray();
-            res.send(result)
-        })
+        // app.get('/products', async (req, res) => {
+        //     const query = {}
+        //     const result = await productsCollections.find(query).toArray();
+        //     res.send(result)
+        // })
 
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { category_id: id }
             const result = await productsCollections.find(query).toArray();
             res.send(result)
+        })
+
+        // get specific Product..............................
+        app.get('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const product = await productsCollections.findOne(query);
+            res.send(product)
         })
 
 
