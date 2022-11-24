@@ -35,12 +35,25 @@ async function run() {
 
         // get category products.................................
 
-        // app.get('/products', async (req, res) => {
-        //     const query = {}
-        //     const result = await productsCollections.find(query).toArray();
-        //     res.send(result)
-        // })
+        app.get('/allproducts', async (req, res) => {
+            const query = {}
+            const result = await productsCollections.find(query).toArray();
+            res.send(result)
+        })
+        // get personal products for seller.............................
+        app.get('/allproducts/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email }
+            const products = await productsCollections.find(query).toArray();
+            res.send(products)
+        })
 
+        // insert product to the database........................................
+        app.post('/product', async (req, res) => {
+            const product = req.body;
+            const result = await productsCollections.insertOne(product);
+            res.send(result)
+        })
 
 
         // get specicfic category products..........................
@@ -59,6 +72,13 @@ async function run() {
             res.send(product)
         })
 
+        // get reported Products ..........................
+        app.get('/products', async (req, res) => {
+            const query = { report: 'true' }
+            const result = await productsCollections.find(query).toArray()
+            res.send(result);
+        })
+
         // save user to database.......................
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -72,6 +92,22 @@ async function run() {
             const sellers = await usersCollection.find(query).toArray()
             res.send(sellers)
         })
+
+        // verifi users............................................
+        app.put('/sellers/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const filter = { _id: ObjectId(id) }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    verify: 'true'
+                }
+            }
+            const result = await usersCollection.updateOne(filter, updateDoc, options)
+            res.send(result)
+        })
+
         // get all buyers.........................................
         app.get('/users/buyers', async (req, res) => {
             const query = { role: 'buyer' }
@@ -81,6 +117,14 @@ async function run() {
 
         // get user from db........................................
         app.get('/users/buyer/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send(user)
+        })
+
+        // get user from db........................................
+        app.get('/users/seller/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email }
             const user = await usersCollection.findOne(query);
