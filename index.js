@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+// stripe secret key........
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 
 const port = process.env.PORT || 5000;
 
@@ -13,7 +16,6 @@ app.use(express.json());
 
 
 // Database connection........................
-
 const uri = `mongodb+srv://${process.env.DB_USER_NAME}:${process.env.DB_PASSWORD}@cluster0.geiv5ao.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -25,6 +27,7 @@ async function run() {
         const productsCollections = client.db('BikeReseller').collection('products');
         const usersCollection = client.db('BikeReseller').collection('users');
         const bookingCollection = client.db('BikeReseller').collection('bookings');
+        const paymentsCollection = client.db('BikeReseller').collection('payments');
 
         // Get all bike breand category.............................
         app.get('/categories', async (req, res) => {
@@ -55,11 +58,10 @@ async function run() {
             res.send(result)
         })
 
-
         // get specicfic category products..........................
-        app.get('/products/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { category_id: id }
+        app.get('/products/:brand', async (req, res) => {
+            const brand = req.params.brand;
+            const query = { brand_name: brand }
             const result = await productsCollections.find(query).toArray();
             res.send(result)
         })
@@ -91,6 +93,40 @@ async function run() {
             const sellers = await usersCollection.find(query).toArray()
             res.send(sellers)
         })
+
+        // payment api.....................................
+        app.post("/create-payment-intent", async (req, res) => {
+            const product = req.body;
+            const price = parseInt(product.price);
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: "usd",
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ],
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        })
+
+        // payment document saved........................................
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            const id = payment.bookingId;
+            const filter = { _id: ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    paid: true,
+                    transectionId: payment.transectionId
+                }
+            }
+            const updataResult = await bookingCollection.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+
 
         // verifi users............................................
         app.put('/sellers/:id', async (req, res) => {
@@ -161,6 +197,13 @@ async function run() {
             const booking = req.body;
             const result = await bookingCollection.insertOne(booking);
             res.send(result)
+        })
+
+        app.get('/booked/payment/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const booked = await bookingCollection.findOne(query)
+            res.send(booked)
         })
 
         // get all bookings of user.....................
