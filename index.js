@@ -82,7 +82,6 @@ async function run() {
         // save user to database.......................
         app.post('/users', async (req, res) => {
             const user = req.body;
-            console.log(user);
             const result = await usersCollection.insertOne(user);
             res.send(result)
         })
@@ -137,6 +136,14 @@ async function run() {
         app.get('/users/buyer/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send(user)
+        })
+
+        // get login user............................
+        app.get('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
             const user = await usersCollection.findOne(query);
             res.send(user)
         })
