@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 // stripe secret key........
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -20,6 +21,25 @@ const uri = `mongodb+srv://${process.env.DB_USER_NAME}:${process.env.DB_PASSWORD
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+// verify jwt token.............................
+const verifyjwt = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send('Unauthorized Access');
+    }
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (error, decoded) {
+        if (error) {
+            return res.status(403).send({ message: 'Fo access' })
+        }
+        req.decoded = decoded;
+        next()
+    })
+
+}
+
+
 async function run() {
 
     try {
@@ -28,6 +48,20 @@ async function run() {
         const usersCollection = client.db('BikeReseller').collection('users');
         const bookingCollection = client.db('BikeReseller').collection('bookings');
         const paymentsCollection = client.db('BikeReseller').collection('payments');
+        const advertiseCollection = client.db('BikeReseller').collection('advertise');
+
+
+        // Create secret token.....................................
+        app.get('/jwt', async (req, res) => {
+            const email = req.query.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            if (user) {
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '6d' })
+                return res.send({ accessToken: token })
+            }
+            res.status(403).send({ accessToken: ' ' })
+        })
 
         // Get all bike breand category.............................
         app.get('/categories', async (req, res) => {
@@ -37,25 +71,77 @@ async function run() {
         })
 
         // get category products.................................
-
         app.get('/allproducts', async (req, res) => {
             const query = {}
             const result = await productsCollections.find(query).toArray();
             res.send(result)
         })
+
         // get personal products for seller.............................
-        app.get('/allproducts/:email', async (req, res) => {
+        app.get('/allproducts/:email', verifyjwt, async (req, res) => {
             const email = req.params.email;
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'Forbidden access' })
+            }
             const query = { email: email }
             const products = await productsCollections.find(query).toArray();
             res.send(products)
         })
 
         // insert product to the database........................................
-        app.post('/product', async (req, res) => {
+        app.post('/product', verifyjwt, async (req, res) => {
             const product = req.body;
             const result = await productsCollections.insertOne(product);
             res.send(result)
+        })
+
+        // delete a Product..........................................
+        app.delete('/delete/:id', verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const result = await productsCollections.deleteOne(query);
+            res.send(result)
+        })
+
+        //save Advertise ..................................
+        // ...................................................
+        app.post('/advertise', verifyjwt, async (req, res) => {
+            const product = req.body;
+            const query = {
+                _id: product._id
+            }
+
+            // update product to advertise product................................................
+            const productQuery = {
+                _id: ObjectId(product._id)
+            }
+            const updateDoc = {
+                $set: {
+                    advertise: true
+                }
+            }
+            const adproduct = await productsCollections.findOne(productQuery);
+            if (adproduct) {
+                const updateProduct = await productsCollections.updateOne(productQuery, updateDoc)
+            }
+
+            // get product to addvertist..........................
+            const addedProduct = await advertiseCollection.findOne(query);
+            if (addedProduct) {
+                return res.send({ message: 'Already Advertise' })
+            }
+
+            const result = await advertiseCollection.insertOne(product);
+            res.send(result)
+        })
+        // get Advertise .......................
+        app.get('/advertise', async (req, res) => {
+            const query = {};
+            const advertise = await advertiseCollection.find(query).toArray();
+            res.send(advertise);
         })
 
         // get specicfic category products..........................
@@ -75,7 +161,7 @@ async function run() {
         })
 
         // get reported Products ..........................
-        app.get('/products', async (req, res) => {
+        app.get('/reported/products', verifyjwt, async (req, res) => {
             const query = { report: 'true' }
             const result = await productsCollections.find(query).toArray()
             res.send(result);
@@ -84,11 +170,16 @@ async function run() {
         // save user to database.......................
         app.post('/users', async (req, res) => {
             const user = req.body;
+            const query = { email: user.email };
+            const savedUser = await usersCollection.findOne(query);
+            if (savedUser) {
+                return res.send({ message: 'User already saved' });
+            }
             const result = await usersCollection.insertOne(user);
             res.send(result)
         })
         // get all sellers.........................................
-        app.get('/users/sellers', async (req, res) => {
+        app.get('/users/sellers', verifyjwt, async (req, res) => {
             const query = { role: 'seller' }
             const sellers = await usersCollection.find(query).toArray()
             res.send(sellers)
@@ -116,22 +207,28 @@ async function run() {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.bookingId;
+            const productid = payment.productid
             const filter = { _id: ObjectId(id) }
+            const query = { _id: ObjectId(productid) }
             const updateDoc = {
                 $set: {
                     paid: true,
                     transectionId: payment.transectionId
                 }
-            }
-            const updataResult = await bookingCollection.updateOne(filter, updateDoc)
+            };
+            const updateSold = {
+                $set: {
+                    sold: true
+                }
+            };
+            const updataBooking = await bookingCollection.updateOne(filter, updateDoc)
+            const updateProduct = await productsCollections.updateOne(query, updateSold)
             res.send(result)
         })
 
-
-        // verifi users............................................
+        // verify users............................................
         app.put('/sellers/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
             const filter = { _id: ObjectId(id) }
             const options = { upsert: true };
             const updateDoc = {
@@ -162,7 +259,7 @@ async function run() {
         })
 
         // get all buyers.........................................
-        app.get('/users/buyers', async (req, res) => {
+        app.get('/users/buyers', verifyjwt, async (req, res) => {
             const query = { role: 'buyer' }
             const buyers = await usersCollection.find(query).toArray()
             res.send(buyers)
@@ -199,6 +296,14 @@ async function run() {
             res.send(result)
         })
 
+        // Delete bookings............................................
+        app.delete('/bookings/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const result = await bookingCollection.deleteOne(query);
+            res.send(result)
+        })
+
         app.get('/booked/payment/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
@@ -207,12 +312,23 @@ async function run() {
         })
 
         // get all bookings of user.....................
-        app.get('/bookings/:email', async (req, res) => {
-            const email = req.params.email;
-            const query = { email }
+        app.get('/bookings', verifyjwt, async (req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'Not valid access' })
+            }
+            const query = { email: email }
             const bookings = await bookingCollection.find(query).toArray()
             res.send(bookings)
         })
+
+        // app.get('/bookings/:email', async (req, res) => {
+        //     const email = req.params.email;
+        //     const query = { email }
+        //     const bookings = await bookingCollection.find(query).toArray()
+        //     res.send(bookings)
+        // })
 
     }
     finally {
