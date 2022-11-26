@@ -120,7 +120,7 @@ async function run() {
             }
             const updateDoc = {
                 $set: {
-                    advertise: true
+                    advertise: 'true'
                 }
             }
             const adproduct = await productsCollections.findOne(productQuery);
@@ -186,7 +186,7 @@ async function run() {
         })
 
         // payment api.....................................
-        app.post("/create-payment-intent", async (req, res) => {
+        app.post('/create-payment-intent', verifyjwt, async (req, res) => {
             const product = req.body;
             const price = parseInt(product.price);
             const amount = price * 100;
@@ -207,18 +207,30 @@ async function run() {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.bookingId;
+
+            // advertise product update is sold or note.............................
+            const advertiseid = payment.productid
+            const adproduct = { _id: advertiseid }
+            const advertiseupdate = {
+                $set: {
+                    sold: 'true'
+                }
+            }
+            const adupdate = await advertiseCollection.updateOne(adproduct, advertiseupdate);
+
+            // bookings and productss update...................................
             const productid = payment.productid
             const filter = { _id: ObjectId(id) }
             const query = { _id: ObjectId(productid) }
             const updateDoc = {
                 $set: {
-                    paid: true,
+                    paid: 'true',
                     transectionId: payment.transectionId
                 }
             };
             const updateSold = {
                 $set: {
-                    sold: true
+                    sold: 'true'
                 }
             };
             const updataBooking = await bookingCollection.updateOne(filter, updateDoc)
