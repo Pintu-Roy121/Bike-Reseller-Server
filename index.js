@@ -183,7 +183,25 @@ async function run() {
             res.send(result)
         })
 
-        // save user to database.......................
+        // Delete Report from product...............................
+        app.patch('/reported/product/:id', verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    report: ''
+                }
+            }
+
+            const product = await productsCollections.updateOne(filter, updateDoc, options);
+            const report = await productsCollections.findOne(filter);
+            console.log(report);
+            res.send(product);
+
+        })
+
+        // save user to database.....................................
         app.post('/users', async (req, res) => {
             const user = req.body;
             const query = { email: user.email };
