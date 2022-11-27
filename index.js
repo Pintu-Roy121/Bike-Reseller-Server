@@ -63,6 +63,19 @@ async function run() {
             res.status(403).send({ accessToken: ' ' })
         })
 
+
+        // verify admin....................................
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail }
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'Forbidden Access' })
+            }
+            next()
+        }
+
         // Get all bike breand category.............................
         app.get('/categories', async (req, res) => {
             const query = {};
@@ -73,7 +86,8 @@ async function run() {
         // get category products.................................
         app.get('/allproducts', async (req, res) => {
             const query = {}
-            const result = await productsCollections.find(query).toArray();
+            const cursor = productsCollections.find(query).sort({ date: -1 })
+            const result = await cursor.toArray();
             res.send(result)
         })
 
@@ -85,7 +99,8 @@ async function run() {
                 return res.status(403).send({ message: 'Forbidden access' })
             }
             const query = { email: email }
-            const products = await productsCollections.find(query).toArray();
+            const cursor = productsCollections.find(query).sort({ sold: 1, advertise: 1 })
+            const products = await cursor.toArray();
             res.send(products)
         })
 
@@ -140,8 +155,9 @@ async function run() {
         // get Advertise .......................
         app.get('/advertise', async (req, res) => {
             const query = {};
-            const advertise = await advertiseCollection.find(query).toArray();
-            res.send(advertise);
+            const advertises = await advertiseCollection.find(query).toArray();
+            const advertisedData = advertises.filter(product => product.sold !== 'true');
+            res.send(advertisedData);
         })
 
         // get specicfic category products..........................
@@ -161,7 +177,7 @@ async function run() {
         })
 
         // get reported Products ..........................
-        app.get('/reported/products', verifyjwt, async (req, res) => {
+        app.get('/reported/products', verifyjwt, verifyAdmin, async (req, res) => {
             const query = { report: 'true' }
             const result = await productsCollections.find(query).toArray()
             res.send(result);
@@ -198,7 +214,6 @@ async function run() {
             const report = await productsCollections.findOne(filter);
             console.log(report);
             res.send(product);
-
         })
 
         // save user to database.....................................
@@ -213,7 +228,7 @@ async function run() {
             res.send(result)
         })
         // get all sellers.........................................
-        app.get('/users/sellers', verifyjwt, async (req, res) => {
+        app.get('/users/sellers', verifyjwt, verifyAdmin, async (req, res) => {
             const query = { role: 'seller' }
             const sellers = await usersCollection.find(query).toArray()
             res.send(sellers)
@@ -305,7 +320,7 @@ async function run() {
         })
 
         // get all buyers.........................................
-        app.get('/users/buyers', verifyjwt, async (req, res) => {
+        app.get('/users/buyers', verifyjwt, verifyAdmin, async (req, res) => {
             const query = { role: 'buyer' }
             const buyers = await usersCollection.find(query).toArray()
             res.send(buyers)
