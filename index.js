@@ -167,6 +167,22 @@ async function run() {
             res.send(result);
         })
 
+        // set product as Reported............................
+        app.put('/reported/products/:id', verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    report: 'true'
+                }
+            }
+            const result = await productsCollections.updateOne(filter, updateDoc, options)
+            res.send(result)
+        })
+
         // save user to database.......................
         app.post('/users', async (req, res) => {
             const user = req.body;
