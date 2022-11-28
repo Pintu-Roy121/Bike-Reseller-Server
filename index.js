@@ -122,7 +122,6 @@ async function run() {
             const result = await productsCollections.deleteOne(query);
             res.send(result)
         })
-
         //save Advertise ..................................
         // ...................................................
         app.post('/advertise', verifyjwt, async (req, res) => {
