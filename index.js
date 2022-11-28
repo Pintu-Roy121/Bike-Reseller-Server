@@ -257,7 +257,6 @@ async function run() {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.bookingId;
-
             // advertise product update is sold or note.............................
             const advertiseid = payment.productid
             const adproduct = { _id: advertiseid }
