@@ -31,7 +31,7 @@ const verifyjwt = (req, res, next) => {
 
     jwt.verify(token, process.env.ACCESS_TOKEN, function (error, decoded) {
         if (error) {
-            return res.status(403).send({ message: 'Fo access' })
+            return res.status(403).send({ message: 'Forbidden access' })
         }
         req.decoded = decoded;
         next()
