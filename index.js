@@ -87,8 +87,10 @@ async function run() {
         app.get('/allproducts', async (req, res) => {
             const query = {}
             const cursor = productsCollections.find(query).sort({ date: -1 })
-            const result = await cursor.toArray();
-            res.send(result)
+            const AllProducts = await cursor.toArray();
+            const Available = AllProducts.filter(product => product.sold !== 'true');
+            // console.log(Available);
+            res.send(Available)
         })
 
         // get personal products for seller.............................
@@ -128,7 +130,6 @@ async function run() {
             const query = {
                 _id: product._id
             }
-
             // update product to advertise product................................................
             const productQuery = {
                 _id: ObjectId(product._id)
